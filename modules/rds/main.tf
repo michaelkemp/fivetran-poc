@@ -7,12 +7,14 @@ resource "aws_db_parameter_group" "parameter-group" {
   name     = "${var.name}-parameter-group-${var.region}"
   family   = "postgres14"
   parameter {
-    name  = "log_statement"
-    value = "all"
+    name         = "log_statement"
+    value        = "all"
+    apply_method = "pending-reboot"
   }
   parameter {
-    name  = "rds.force_ssl"
-    value = "1"
+    name         = "rds.force_ssl"
+    value        = "0"
+    apply_method = "pending-reboot"
   }
   parameter {
     name         = "rds.logical_replication"
@@ -39,11 +41,11 @@ resource "aws_security_group" "rds-security-group" {
   description = "RDS Security Group"
   vpc_id      = var.vpc_id
   ingress {
-    from_port   = 5432
-    to_port     = 5432
-    protocol    = "TCP"
-    self        = true
-    description = "Self Referencing"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "TCP"
+    security_groups = [var.ec2_security_group_id]
+    description     = "Access from Bastion Security Group"
   }
   egress {
     from_port   = 0
@@ -68,7 +70,7 @@ resource "aws_db_instance" "rds" {
   username                            = replace(var.name, "-", "")
   password                            = data.aws_ssm_parameter.dbpwd.value
   db_subnet_group_name                = aws_db_subnet_group.rds-subnet-group.name
-  vpc_security_group_ids              = [aws_security_group.rds-security-group.id, var.ec2_security_group_id]
+  vpc_security_group_ids              = [aws_security_group.rds-security-group.id]
   enabled_cloudwatch_logs_exports     = ["postgresql"]
   depends_on                          = [aws_cloudwatch_log_group.log-group]
   parameter_group_name                = aws_db_parameter_group.parameter-group.id
